@@ -714,6 +714,39 @@ async function startCamera() {
   }, { passive: false });
 
   pip.addEventListener('touchend', () => { dragging = false; });
+
+  // --- PINCH TO RESIZE ---
+  let pinching = false, initDist = 0, initSize = 0;
+
+  function pinchDist(e) {
+    const a = e.touches[0], b = e.touches[1];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  pip.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      pinching = true;
+      dragging = false;
+      initDist = pinchDist(e);
+      initSize = pip.offsetWidth;
+    }
+  }, { passive: false });
+
+  pip.addEventListener('touchmove', e => {
+    if (pinching && e.touches.length === 2) {
+      e.preventDefault();
+      const scale = pinchDist(e) / initDist;
+      let newSize = Math.round(initSize * scale);
+      newSize = Math.max(50, Math.min(200, newSize)); // clamp 50-200px
+      pip.style.width = newSize + 'px';
+      pip.style.height = newSize + 'px';
+    }
+  }, { passive: false });
+
+  pip.addEventListener('touchend', e => {
+    if (e.touches.length < 2) pinching = false;
+  });
 })();
 
 // --- SCREEN RECORDING ---
@@ -891,5 +924,6 @@ document.addEventListener('touchend', e => {
   lastTouchEnd = now;
 }, { passive: false });
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
