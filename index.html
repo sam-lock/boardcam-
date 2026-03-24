@@ -31,8 +31,6 @@ html, body {
 #drawCanvas {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   cursor: crosshair; background: var(--bg);
-  background-image: radial-gradient(circle, #ddd9d0 0.7px, transparent 0.7px);
-  background-size: 24px 24px;
   touch-action: none;
 }
 
@@ -503,15 +501,44 @@ function eraseAt(pos) {
 
 // --- RENDERING ---
 function redraw() {
+  const w = canvas.width / dpr;
+  const h = canvas.height / dpr;
+
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1) Draw solid background (so recordings aren't black)
+  ctx.fillStyle = '#f8f8f6';
+  ctx.fillRect(0, 0, w, h);
+
+  // 2) Draw dot grid pattern
+  ctx.fillStyle = '#ddd9d0';
+  const dotSpacing = 24;
+  const startX = (panOffset.x % dotSpacing + dotSpacing) % dotSpacing;
+  const startY = (panOffset.y % dotSpacing + dotSpacing) % dotSpacing;
+  for (let x = startX; x < w; x += dotSpacing) {
+    for (let y = startY; y < h; y += dotSpacing) {
+      ctx.beginPath();
+      ctx.arc(x, y, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 3) Draw strokes
   ctx.translate(panOffset.x, panOffset.y);
   strokes.forEach(s => {
     if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
     else if (s.type === 'text') drawText(s);
     else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width);
   });
+
+  // 4) Draw branding watermark (bottom-left, always visible in recordings)
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.font = '500 11px "DM Sans", sans-serif';
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.textAlign = 'left';
+  ctx.fillText('UNLOCK STUDIO', 16, h - 16);
+
   ctx.restore();
 }
 
