@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BoardCam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+/* === RESET & BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f8f8f6;
+  --toolbar-bg: #ffffffee;
+  --toolbar-border: #e8e6e1;
+  --icon-default: #6b6860;
+  --icon-active: #1a1916;
+  --accent: #e8453c;
+  --accent-soft: #fff0ef;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --font: 'DM Sans', -apple-system, sans-serif;
+}
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: var(--font); background: var(--bg);
+  touch-action: none; -webkit-user-select: none; user-select: none;
+}
+
+/* === TOOLBAR === */
+#toolbar {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px;
+  background: var(--toolbar-bg); border: 1px solid var(--toolbar-border);
+  border-radius: 12px; padding: 4px 6px; z-index: 100;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-md);
+}
+.tool-btn {
+  width: 36px; height: 36px; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: var(--icon-default); transition: all 0.15s;
+  position: relative; flex-shrink: 0;
+}
+.tool-btn:hover { background: #f0efeb; color: var(--icon-active); }
+.tool-btn.active { background: #edecea; color: var(--icon-active); }
+.tool-btn svg { width: 18px; height: 18px; }
+.tool-sep { width: 1px; height: 24px; background: var(--toolbar-border); margin: 0 3px; flex-shrink: 0; }
+
+/* === COLOR PICKER in toolbar === */
+#colorPicker {
+  display: flex; gap: 3px; align-items: center; padding: 0 2px;
+}
+.color-dot {
+  width: 16px; height: 16px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.color-dot:hover { transform: scale(1.2); }
+.color-dot.active { border-color: var(--icon-active); box-shadow: 0 0 0 2px #fff; }
+
+/* === STROKE WIDTH === */
+#strokePicker {
+  display: flex; gap: 2px; align-items: center; padding: 0 2px;
+}
+.stroke-opt {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: transparent; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all 0.15s;
+}
+.stroke-opt:hover { background: #f0efeb; }
+.stroke-opt.active { background: #edecea; }
+.stroke-dot { border-radius: 50%; background: var(--icon-default); }
+
+/* === RECORD BUTTON === */
+#recordBtn {
+  width: 36px; height: 36px; border: none; border-radius: 8px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  background: transparent; transition: all 0.2s; color: var(--icon-default);
+}
+#recordBtn:hover { background: var(--accent-soft); color: var(--accent); }
+#recordBtn.recording { background: var(--accent); color: #fff; animation: pulse 1.5s infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232,69,60,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(232,69,60,0); }
+}
+
+/* === RECORD TIMER === */
+#recordTimer {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #fff; padding: 4px 14px;
+  border-radius: 20px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.5px; z-index: 100; display: none;
+  box-shadow: var(--shadow-md);
+}
+#recordTimer.visible { display: flex; align-items: center; gap: 6px; }
+#recordTimer::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: #fff; animation: blink 1s infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* === CANVAS === */
+#drawCanvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  cursor: crosshair; background: var(--bg);
+}
+
+/* === CAMERA PIP === */
+#cameraPip {
+  position: fixed; bottom: 24px; right: 24px; width: 90px; height: 90px;
+  border-radius: 50%; overflow: hidden; z-index: 90;
+  box-shadow: var(--shadow-lg), 0 0 0 3px #fff;
+  cursor: grab; transition: box-shadow 0.2s;
+}
+#cameraPip:hover { box-shadow: var(--shadow-lg), 0 0 0 3px #fff, 0 0 0 6px rgba(0,0,0,0.08); }
+#cameraPip.dragging { cursor: grabbing; box-shadow: var(--shadow-lg), 0 0 0 3px var(--accent); }
+#cameraPip video {
+  width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+}
+#cameraPlaceholder {
+  width: 100%; height: 100%; background: #e8e6e1;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--icon-default); font-size: 11px; text-align: center;
+  padding: 8px; line-height: 1.3;
+}
+
+/* === UNDO/REDO === */
+#undoRedo {
+  position: fixed; bottom: 24px; left: 24px; display: flex; gap: 4px; z-index: 90;
+}
+#undoRedo button {
+  width: 36px; height: 36px; border: 1px solid var(--toolbar-border);
+  background: var(--toolbar-bg); border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--icon-default); box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px); transition: all 0.15s;
+}
+#undoRedo button:hover:not(:disabled) { background: #f0efeb; color: var(--icon-active); }
+#undoRedo button:disabled { opacity: 0.35; cursor: default; }
+
+/* === TEXT INPUT === */
+#textInput {
+  position: fixed; z-index: 110; border: 2px solid var(--accent);
+  border-radius: 4px; padding: 4px 8px; font-family: var(--font);
+  font-size: 18px; background: #fff; outline: none; min-width: 100px;
+  display: none; box-shadow: var(--shadow-md);
+}
+
+/* === TOOLTIP === */
+.tool-btn[data-tip]::after {
+  content: attr(data-tip); position: absolute; bottom: -28px; left: 50%;
+  transform: translateX(-50%); background: #1a1916; color: #fff;
+  padding: 3px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+  font-family: var(--font); letter-spacing: 0.3px;
+}
+.tool-btn[data-tip]:hover::after { opacity: 1; }
+
+/* === SUBTLE CANVAS DOT PATTERN === */
+#drawCanvas {
+  background-image: radial-gradient(circle, #ddd9d0 0.7px, transparent 0.7px);
+  background-size: 24px 24px;
+}
+
+/* mobile adjustments */
+@media (max-width: 640px) {
+  #toolbar { top: 8px; padding: 3px 4px; gap: 1px; max-width: calc(100vw - 16px); overflow-x: auto; }
+  .tool-btn { width: 32px; height: 32px; }
+  .tool-btn svg { width: 16px; height: 16px; }
+  #cameraPip { width: 70px; height: 70px; bottom: 16px; right: 16px; }
+  .tool-btn[data-tip]::after { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <!-- PLACEHOLDER: tools will be filled by JS -->
+</div>
+
+<!-- RECORD TIMER -->
+<div id="recordTimer"><span id="timerText">00:00</span></div>
+
+<!-- CANVAS -->
+<canvas id="drawCanvas"></canvas>
+
+<!-- TEXT INPUT -->
+<input type="text" id="textInput" placeholder="Type here...">
+
+<!-- CAMERA PIP -->
+<div id="cameraPip">
+  <video id="cameraVideo" autoplay playsinline muted></video>
+  <div id="cameraPlaceholder" style="display:none;">Camera</div>
+</div>
+
+<!-- UNDO/REDO -->
+<div id="undoRedo">
+  <button id="undoBtn" disabled data-tip="Undo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
+  </button>
+  <button id="redoBtn" disabled data-tip="Redo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 0 0-15.36-6.36L3 9"/></svg>
+  </button>
+</div>
+
+<script>
+// ========================================
+// BoardCam - Whiteboard + Camera + Record
+// ========================================
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// --- TOOLBAR SETUP ---
+const tools = [
+  { id: 'select', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>`, tip: 'Select' },
+  { id: 'pan', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>`, tip: 'Pan' },
+  { id: 'sep1', type: 'sep' },
+  { id: 'rect', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`, tip: 'Rectangle' },
+  { id: 'diamond', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l10 10-10 10L2 12z"/></svg>`, tip: 'Diamond' },
+  { id: 'ellipse', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="10"/></svg>`, tip: 'Circle' },
+  { id: 'arrow', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`, tip: 'Arrow' },
+  { id: 'line', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>`, tip: 'Line' },
+  { id: 'sep2', type: 'sep' },
+  { id: 'pen', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`, tip: 'Pen' },
+  { id: 'text', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/></svg>`, tip: 'Text' },
+  { id: 'eraser', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/></svg>`, tip: 'Eraser' },
+  { id: 'sep3', type: 'sep' },
+  { id: 'colors', type: 'colors' },
+  { id: 'sep4', type: 'sep' },
+  { id: 'strokes', type: 'strokes' },
+  { id: 'sep5', type: 'sep' },
+  { id: 'record', type: 'record' },
+];
+
+const colors = ['#1a1916','#e8453c','#3b82f6','#16a34a','#f59e0b','#8b5cf6'];
+const strokeWidths = [2, 4, 8];
+
+let currentTool = 'pen';
+let currentColor = '#1a1916';
+let currentStroke = 2;
+
+function buildToolbar() {
+  const tb = $('#toolbar');
+  tools.forEach(t => {
+    if (t.type === 'sep') {
+      tb.insertAdjacentHTML('beforeend', '<div class="tool-sep"></div>');
+    } else if (t.type === 'colors') {
+      let html = '<div id="colorPicker">';
+      colors.forEach((c, i) => {
+        html += `<div class="color-dot${i===0?' active':''}" data-color="${c}" style="background:${c}"></div>`;
+      });
+      html += '</div>';
+      tb.insertAdjacentHTML('beforeend', html);
+    } else if (t.type === 'strokes') {
+      let html = '<div id="strokePicker">';
+      strokeWidths.forEach((w, i) => {
+        html += `<button class="stroke-opt${i===0?' active':''}" data-width="${w}"><div class="stroke-dot" style="width:${w+4}px;height:${w+4}px"></div></button>`;
+      });
+      html += '</div>';
+      tb.insertAdjacentHTML('beforeend', html);
+    } else if (t.type === 'record') {
+      tb.insertAdjacentHTML('beforeend', `<button id="recordBtn" data-tip="Record"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg></button>`);
+    } else {
+      const btn = document.createElement('button');
+      btn.className = 'tool-btn' + (t.id === currentTool ? ' active' : '');
+      btn.dataset.tool = t.id;
+      btn.dataset.tip = t.tip;
+      btn.innerHTML = t.icon;
+      btn.addEventListener('click', () => selectTool(t.id));
+      tb.appendChild(btn);
+    }
+  });
+
+  // Color events
+  $$('.color-dot').forEach(d => d.addEventListener('click', () => {
+    $$('.color-dot').forEach(x => x.classList.remove('active'));
+    d.classList.add('active');
+    currentColor = d.dataset.color;
+  }));
+
+  // Stroke events
+  $$('.stroke-opt').forEach(s => s.addEventListener('click', () => {
+    $$('.stroke-opt').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    currentStroke = parseInt(s.dataset.width);
+  }));
+}
+
+function selectTool(id) {
+  currentTool = id;
+  $$('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === id));
+  const canvas = $('#drawCanvas');
+  if (id === 'pan') canvas.style.cursor = 'grab';
+  else if (id === 'select') canvas.style.cursor = 'default';
+  else if (id === 'eraser') canvas.style.cursor = 'cell';
+  else if (id === 'text') canvas.style.cursor = 'text';
+  else canvas.style.cursor = 'crosshair';
+}
+
+buildToolbar();
+
+// --- CANVAS SETUP ---
+const canvas = $('#drawCanvas');
+const ctx = canvas.getContext('2d');
+let dpr = window.devicePixelRatio || 1;
+
+function resizeCanvas() {
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redraw();
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// --- HISTORY (Undo/Redo) ---
+let history = [];
+let historyIndex = -1;
+
+function saveState() {
+  historyIndex++;
+  history = history.slice(0, historyIndex);
+  history.push(JSON.parse(JSON.stringify(strokes)));
+  updateUndoRedo();
+}
+function undo() {
+  if (historyIndex > 0) { historyIndex--; strokes = JSON.parse(JSON.stringify(history[historyIndex])); redraw(); updateUndoRedo(); }
+}
+function redo() {
+  if (historyIndex < history.length - 1) { historyIndex++; strokes = JSON.parse(JSON.stringify(history[historyIndex])); redraw(); updateUndoRedo(); }
+}
+function updateUndoRedo() {
+  $('#undoBtn').disabled = historyIndex <= 0;
+  $('#redoBtn').disabled = historyIndex >= history.length - 1;
+}
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+
+// keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'y') { e.preventDefault(); redo(); }
+});
+
+// --- DRAWING ENGINE ---
+let strokes = []; // [{type, points, color, width} | {type:'shape', shape, ...}]
+let isDrawing = false;
+let currentPoints = [];
+let shapeStart = null;
+let panOffset = { x: 0, y: 0 };
+let panStart = null;
+
+// Save initial empty state
+saveState();
+
+function getPos(e) {
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y };
+}
+function getRawPos(e) {
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX, y: touch.clientY };
+}
+
+canvas.addEventListener('pointerdown', onPointerDown);
+canvas.addEventListener('pointermove', onPointerMove);
+canvas.addEventListener('pointerup', onPointerUp);
+canvas.addEventListener('pointercancel', onPointerUp);
+
+function onPointerDown(e) {
+  e.preventDefault();
+  const pos = getPos(e);
+  const raw = getRawPos(e);
+
+  if (currentTool === 'pan') {
+    panStart = { x: raw.x - panOffset.x, y: raw.y - panOffset.y };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+
+  if (currentTool === 'text') {
+    const input = $('#textInput');
+    input.style.left = raw.x + 'px';
+    input.style.top = raw.y + 'px';
+    input.style.display = 'block';
+    input.style.color = currentColor;
+    input.value = '';
+    input.focus();
+    input.onkeydown = ev => {
+      if (ev.key === 'Enter') {
+        if (input.value.trim()) {
+          strokes.push({ type: 'text', x: pos.x, y: pos.y, text: input.value, color: currentColor, size: 18 + currentStroke * 2 });
+          saveState(); redraw();
+        }
+        input.style.display = 'none';
+      }
+    };
+    return;
+  }
+
+  if (currentTool === 'eraser') {
+    // Remove stroke near click
+    const threshold = 15;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (s.type === 'pen' && s.points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < threshold)) {
+        strokes.splice(i, 1); saveState(); redraw(); return;
+      }
+      if (s.type === 'text' && Math.hypot(s.x - pos.x, s.y - pos.y) < 40) {
+        strokes.splice(i, 1); saveState(); redraw(); return;
+      }
+      if (['rect','diamond','ellipse','line','arrow'].includes(s.type)) {
+        const cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2;
+        if (Math.hypot(cx - pos.x, cy - pos.y) < Math.max(Math.abs(s.x2-s.x1), Math.abs(s.y2-s.y1)) / 2 + threshold) {
+          strokes.splice(i, 1); saveState(); redraw(); return;
+        }
+      }
+    }
+    return;
+  }
+
+  isDrawing = true;
+
+  if (currentTool === 'pen') {
+    currentPoints = [pos];
+  } else if (['rect','diamond','ellipse','line','arrow'].includes(currentTool)) {
+    shapeStart = pos;
+  }
+}
+
+function onPointerMove(e) {
+  e.preventDefault();
+  const pos = getPos(e);
+  const raw = getRawPos(e);
+
+  if (panStart) {
+    panOffset.x = raw.x - panStart.x;
+    panOffset.y = raw.y - panStart.y;
+    redraw();
+    return;
+  }
+
+  if (!isDrawing) return;
+
+  if (currentTool === 'pen') {
+    currentPoints.push(pos);
+    redraw();
+    drawPenStroke(currentPoints, currentColor, currentStroke);
+  } else if (shapeStart) {
+    redraw();
+    drawShape(currentTool, shapeStart.x, shapeStart.y, pos.x, pos.y, currentColor, currentStroke, true);
+  }
+}
+
+function onPointerUp(e) {
+  if (panStart) { panStart = null; canvas.style.cursor = 'grab'; return; }
+  if (!isDrawing) return;
+  isDrawing = false;
+  const pos = getPos(e);
+
+  if (currentTool === 'pen' && currentPoints.length > 1) {
+    strokes.push({ type: 'pen', points: [...currentPoints], color: currentColor, width: currentStroke });
+    saveState();
+  } else if (shapeStart && ['rect','diamond','ellipse','line','arrow'].includes(currentTool)) {
+    strokes.push({ type: currentTool, x1: shapeStart.x, y1: shapeStart.y, x2: pos.x, y2: pos.y, color: currentColor, width: currentStroke });
+    saveState();
+  }
+  currentPoints = [];
+  shapeStart = null;
+  redraw();
+}
+
+// --- RENDERING ---
+function redraw() {
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.translate(panOffset.x, panOffset.y);
+  strokes.forEach(s => {
+    if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
+    else if (s.type === 'text') drawText(s);
+    else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width);
+  });
+  ctx.restore();
+}
+
+function drawPenStroke(pts, color, width) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i+1].x) / 2;
+    const my = (pts[i].y + pts[i+1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
+  ctx.stroke();
+}
+
+function drawShape(type, x1, y1, x2, y2, color, width, preview) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (preview) { ctx.setLineDash([]); }
+
+  if (type === 'rect') {
+    ctx.beginPath(); ctx.rect(x1, y1, x2-x1, y2-y1); ctx.stroke();
+  } else if (type === 'diamond') {
+    const cx = (x1+x2)/2, cy = (y1+y2)/2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y1); ctx.lineTo(x2, cy); ctx.lineTo(cx, y2); ctx.lineTo(x1, cy);
+    ctx.closePath(); ctx.stroke();
+  } else if (type === 'ellipse') {
+    const cx = (x1+x2)/2, cy = (y1+y2)/2;
+    const rx = Math.abs(x2-x1)/2, ry = Math.abs(y2-y1)/2;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+  } else if (type === 'line') {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  } else if (type === 'arrow') {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const angle = Math.atan2(y2-y1, x2-x1);
+    const headLen = 12 + width * 2;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
+    ctx.stroke();
+  }
+}
+
+function drawText(s) {
+  ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
+  ctx.fillStyle = s.color;
+  ctx.fillText(s.text, s.x, s.y);
+}
+
+// --- CAMERA ---
+async function initCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 180, height: 180 }, audio: false });
+    $('#cameraVideo').srcObject = stream;
+    $('#cameraPlaceholder').style.display = 'none';
+  } catch(err) {
+    console.warn('Camera not available:', err);
+    $('#cameraVideo').style.display = 'none';
+    $('#cameraPlaceholder').style.display = 'flex';
+  }
+}
+initCamera();
+
+// --- DRAGGABLE CAMERA PIP ---
+(function() {
+  const pip = $('#cameraPip');
+  let dragging = false, startX, startY, origX, origY;
+
+  pip.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    dragging = true; pip.classList.add('dragging');
+    startX = e.clientX; startY = e.clientY;
+    const r = pip.getBoundingClientRect();
+    origX = r.left; origY = r.top;
+    pip.setPointerCapture(e.pointerId);
+  });
+  pip.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    pip.style.left = (origX + dx) + 'px';
+    pip.style.top = (origY + dy) + 'px';
+    pip.style.right = 'auto'; pip.style.bottom = 'auto';
+  });
+  pip.addEventListener('pointerup', () => { dragging = false; pip.classList.remove('dragging'); });
+})();
+
+// --- SCREEN RECORDING ---
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordStartTime = 0;
+let timerInterval = null;
+
+$('#recordBtn').addEventListener('click', toggleRecord);
+
+async function toggleRecord() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+
+  try {
+    // Capture the canvas stream
+    const canvasStream = canvas.captureStream(30);
+
+    // Try to get audio
+    let audioStream = null;
+    try {
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch(e) { /* no audio, that's ok */ }
+
+    const tracks = [...canvasStream.getTracks()];
+    if (audioStream) tracks.push(...audioStream.getTracks());
+
+    const combinedStream = new MediaStream(tracks);
+
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(combinedStream, {
+      mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
+    });
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'boardcam-' + Date.now() + '.webm';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      $('#recordBtn').classList.remove('recording');
+      $('#recordTimer').classList.remove('visible');
+      clearInterval(timerInterval);
+      if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+    };
+
+    mediaRecorder.start(100);
+    $('#recordBtn').classList.add('recording');
+    recordStartTime = Date.now();
+    $('#recordTimer').classList.add('visible');
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      $('#timerText').textContent = m + ':' + s;
+    }, 500);
+
+    // For recording: we need to continuously draw camera onto canvas
+    startCompositeLoop();
+  } catch(err) {
+    console.error('Recording failed:', err);
+    alert('Recording not supported in this browser.');
+  }
+}
+
+// When recording, composite camera onto canvas
+let compositeRAF = null;
+function startCompositeLoop() {
+  const video = $('#cameraVideo');
+  const pip = $('#cameraPip');
+
+  function loop() {
+    if (!mediaRecorder || mediaRecorder.state !== 'recording') { compositeRAF = null; return; }
+
+    // Draw camera circle onto canvas during recording
+    const pr = pip.getBoundingClientRect();
+    const cx = pr.left + pr.width / 2;
+    const cy = pr.top + pr.height / 2;
+    const r = pr.width / 2;
+
+    // Redraw everything first
+    redraw();
+
+    // Then overlay camera
+    if (video.srcObject && video.readyState >= 2) {
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      // Mirror the camera
+      ctx.translate(cx + r, cy - r);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, r * 2, r * 2);
+      ctx.restore();
+
+      // Border
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    compositeRAF = requestAnimationFrame(loop);
+  }
+  loop();
+}
+</script>
+</body>
+</html>
