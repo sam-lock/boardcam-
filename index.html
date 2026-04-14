@@ -394,6 +394,8 @@ let draggingText = null;
 let draggingImage = null;
 let draggingStroke = null;
 let selectedStroke = -1;
+// Transform handle interaction
+let transformHandle = null; // { type:'scale-nw/ne/se/sw/n/s/e/w' | 'rotate', startPos, startBBox }
 let isRecording = false;
 let livePreviewPoints = []; // for real-time pen preview during recording
 
@@ -662,16 +664,25 @@ function onStart(e) {
     return;
   }
 
-  // Select / drag - supports ALL stroke types
+  // Select / drag - supports ALL stroke types + transform handles
   if (currentTool === 'select') {
+    // Check transform handles first (only when something is selected)
+    if (selectedStroke >= 0 && selectedStroke < strokes.length) {
+      const h = hitTestHandle(strokes[selectedStroke], pos);
+      if (h) {
+        const bbox = getStrokeBBox(strokes[selectedStroke]);
+        transformHandle = { type: h, startPos: { ...pos }, bbox, index: selectedStroke,
+          origStroke: deepCloneStroke(strokes[selectedStroke]) };
+        return;
+      }
+    }
+    // Check strokes
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
       if (hitTest(s, pos)) {
-        draggingStroke = { index: i, offsetX: pos.x, offsetY: pos.y, origStroke: JSON.parse(JSON.stringify(s.type === 'image' ? { ...s, imgEl: null } : s)) };
-        draggingStroke.imgEl = s.type === 'image' ? s.imgEl : null;
+        draggingStroke = { index: i, offsetX: pos.x, offsetY: pos.y };
         selectedStroke = i;
         redraw();
-        drawSelectionHighlight(s);
         return;
       }
     }
@@ -733,6 +744,11 @@ function onMove(e) {
     strokes[draggingImage.index].y = pos.y - draggingImage.offsetY;
     redraw(); return;
   }
+  if (transformHandle) {
+    applyTransformHandle(transformHandle, pos);
+    redraw();
+    return;
+  }
   if (draggingStroke) {
     const dx = pos.x - draggingStroke.offsetX;
     const dy = pos.y - draggingStroke.offsetY;
@@ -741,7 +757,6 @@ function onMove(e) {
     const s = strokes[draggingStroke.index];
     moveStroke(s, dx, dy);
     redraw();
-    drawSelectionHighlight(s);
     return;
   }
 
@@ -761,6 +776,7 @@ function onMove(e) {
 function onEnd(e) {
   if (draggingText) { saveState(); draggingText = null; return; }
   if (draggingImage) { saveState(); draggingImage = null; return; }
+  if (transformHandle) { saveState(); transformHandle = null; return; }
   if (draggingStroke) { saveState(); draggingStroke = null; return; }
   if (currentTool === 'pixelEraser') {
     isDrawing = false;
@@ -832,10 +848,13 @@ function redrawWithErase() {
   else { ctx.fillStyle = '#f8f8f6'; ctx.fillRect(0, 0, w, h); }
   // Draw strokes (existing pixel erase strokes handled via compositing below)
   strokes.forEach(s => {
-    if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
-    else if (s.type === 'text') drawText(s);
-    else if (s.type === 'image') drawImageStroke(s);
-    else if (s.type !== 'pixelErase') drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.fill);
+    if (s.type === 'pixelErase') return;
+    applyStrokeTransform(s, () => {
+      if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
+      else if (s.type === 'text') drawText(s);
+      else if (s.type === 'image') drawImageStroke(s);
+      else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.fill);
+    });
   });
   // Apply committed erase strokes
   const eraseStrokes = strokes.filter(s => s.type === 'pixelErase');
@@ -866,13 +885,15 @@ function redraw() {
   if (gridCache) ctx.drawImage(gridCache, 0, 0, w, h);
   else { ctx.fillStyle = '#f8f8f6'; ctx.fillRect(0, 0, w, h); }
 
-  // Draw all non-erase strokes
+  // Draw all non-erase strokes (with transform support)
   strokes.forEach(s => {
-    if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
-    else if (s.type === 'text') drawText(s);
-    else if (s.type === 'image') drawImageStroke(s);
-    else if (s.type === 'pixelErase') {} // handled below
-    else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.fill);
+    if (s.type === 'pixelErase') return;
+    applyStrokeTransform(s, () => {
+      if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
+      else if (s.type === 'text') drawText(s);
+      else if (s.type === 'image') drawImageStroke(s);
+      else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.fill);
+    });
   });
 
   // Apply pixel erase strokes using destination-out
@@ -889,6 +910,11 @@ function redraw() {
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // Selection highlight + handles
+  if (selectedStroke >= 0 && selectedStroke < strokes.length) {
+    drawSelectionHighlight(strokes[selectedStroke]);
+  }
+
   // Watermark
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.font = '500 11px "DM Sans", sans-serif';
@@ -898,73 +924,235 @@ function redraw() {
   ctx.restore();
 }
 
-// --- HIT TEST for select tool ---
-function hitTest(s, pos) {
-  const threshold = 18;
+// ─── TRANSFORM SYSTEM ────────────────────────────────────────────
+const HANDLE_R = 7;   // radius of scale handles
+const ROTATE_OFFSET = 28; // px above bbox for rotate handle
+
+function deepCloneStroke(s) {
+  if (s.type === 'image') { const c = { ...s }; delete c.imgEl; return c; }
+  return JSON.parse(JSON.stringify(s));
+}
+
+// Get axis-aligned bounding box (in screen coords, pre-transform)
+function getStrokeBBox(s) {
   if (s.type === 'pen') {
-    return s.points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < threshold);
+    const xs = s.points.map(p => p.x), ys = s.points.map(p => p.y);
+    return { x: Math.min(...xs)-8, y: Math.min(...ys)-8, w: Math.max(...xs)-Math.min(...xs)+16, h: Math.max(...ys)-Math.min(...ys)+16 };
   }
   if (s.type === 'text') {
-    ctx.save();
-    ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
-    const tw = ctx.measureText(s.text).width;
-    ctx.restore();
-    return pos.x >= s.x - 10 && pos.x <= s.x + tw + 10 && pos.y >= s.y - s.size - 5 && pos.y <= s.y + 10;
+    ctx.save(); ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
+    const tw = ctx.measureText(s.text).width; ctx.restore();
+    return { x: s.x - 6, y: s.y - s.size - 4, w: tw + 12, h: s.size + 10 };
   }
-  if (s.type === 'image') {
-    return pos.x >= s.x && pos.x <= s.x + s.w && pos.y >= s.y && pos.y <= s.y + s.h;
+  if (s.type === 'image') return { x: s.x, y: s.y, w: s.w, h: s.h };
+  const x1 = Math.min(s.x1, s.x2), y1 = Math.min(s.y1, s.y2);
+  return { x: x1, y: y1, w: Math.abs(s.x2 - s.x1) || 20, h: Math.abs(s.y2 - s.y1) || 20 };
+}
+
+// Get center of stroke (accounts for stored cx/cy if present)
+function getStrokeCenter(s) {
+  if (s.cx !== undefined) return { x: s.cx, y: s.cy };
+  const b = getStrokeBBox(s);
+  return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+}
+
+// Returns handle positions given a bbox + rotation
+function getHandlePositions(bbox, rotation) {
+  const { x, y, w, h } = bbox;
+  const cx = x + w / 2, cy = y + h / 2;
+  const rot = rotation || 0;
+  function rotPt(px, py) {
+    const dx = px - cx, dy = py - cy;
+    return {
+      x: cx + dx * Math.cos(rot) - dy * Math.sin(rot),
+      y: cy + dx * Math.sin(rot) + dy * Math.cos(rot)
+    };
   }
+  return {
+    nw: rotPt(x, y), n: rotPt(x + w/2, y), ne: rotPt(x + w, y),
+    e:  rotPt(x + w, y + h/2),
+    se: rotPt(x + w, y + h), s: rotPt(x + w/2, y + h), sw: rotPt(x, y + h),
+    w:  rotPt(x, y + h/2),
+    rotate: rotPt(x + w/2, y - ROTATE_OFFSET),
+    cx, cy
+  };
+}
+
+function hitTestHandle(s, pos) {
+  const bbox = getStrokeBBox(s);
+  const rot = s.rotation || 0;
+  const handles = getHandlePositions(bbox, rot);
+  for (const [name, pt] of Object.entries(handles)) {
+    if (name === 'cx' || name === 'cy') continue;
+    if (Math.hypot(pt.x - pos.x, pt.y - pos.y) < HANDLE_R + 6) return name;
+  }
+  return null;
+}
+
+// Hit test body (inside bbox, accounting for rotation)
+function hitTest(s, pos) {
   if (s.type === 'pixelErase') return false;
-  // shapes: hit if near bounding box or center
+  const rot = s.rotation || 0;
+  let testPos = pos;
+  if (rot !== 0) {
+    const c = getStrokeCenter(s);
+    const dx = pos.x - c.x, dy = pos.y - c.y;
+    testPos = {
+      x: c.x + dx * Math.cos(-rot) - dy * Math.sin(-rot),
+      y: c.y + dx * Math.sin(-rot) + dy * Math.cos(-rot)
+    };
+  }
+  const threshold = 18;
+  if (s.type === 'pen') return s.points.some(p => Math.hypot(p.x - testPos.x, p.y - testPos.y) < threshold);
+  if (s.type === 'text') {
+    ctx.save(); ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
+    const tw = ctx.measureText(s.text).width; ctx.restore();
+    return testPos.x >= s.x - 10 && testPos.x <= s.x + tw + 10 && testPos.y >= s.y - s.size - 5 && testPos.y <= s.y + 10;
+  }
+  if (s.type === 'image') return testPos.x >= s.x && testPos.x <= s.x + s.w && testPos.y >= s.y && testPos.y <= s.y + s.h;
   const x1 = Math.min(s.x1, s.x2), y1 = Math.min(s.y1, s.y2);
   const x2 = Math.max(s.x1, s.x2), y2 = Math.max(s.y1, s.y2);
-  const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
   if (s.type === 'line' || s.type === 'arrow') {
-    // distance from point to line segment
-    const A = pos.x - s.x1, B = pos.y - s.y1;
+    const A = testPos.x - s.x1, B = testPos.y - s.y1;
     const C = s.x2 - s.x1, D = s.y2 - s.y1;
-    const dot = A * C + B * D;
-    const len2 = C * C + D * D;
+    const dot = A * C + B * D, len2 = C * C + D * D;
     const t = len2 === 0 ? -1 : Math.min(1, Math.max(0, dot / len2));
-    const nx = s.x1 + t * C - pos.x, ny = s.y1 + t * D - pos.y;
-    return Math.hypot(nx, ny) < threshold;
+    return Math.hypot(s.x1 + t * C - testPos.x, s.y1 + t * D - testPos.y) < threshold;
   }
-  return pos.x >= x1 - threshold && pos.x <= x2 + threshold && pos.y >= y1 - threshold && pos.y <= y2 + threshold;
+  return testPos.x >= x1 - threshold && testPos.x <= x2 + threshold && testPos.y >= y1 - threshold && testPos.y <= y2 + threshold;
 }
 
 function moveStroke(s, dx, dy) {
-  if (s.type === 'pen') { s.points.forEach(p => { p.x += dx; p.y += dy; }); return; }
-  if (s.type === 'text') { s.x += dx; s.y += dy; return; }
-  if (s.type === 'image') { s.x += dx; s.y += dy; return; }
-  if (s.x1 !== undefined) { s.x1 += dx; s.y1 += dy; s.x2 += dx; s.y2 += dy; }
+  if (s.type === 'pen') { s.points.forEach(p => { p.x += dx; p.y += dy; }); }
+  else if (s.type === 'text') { s.x += dx; s.y += dy; }
+  else if (s.type === 'image') { s.x += dx; s.y += dy; }
+  else if (s.x1 !== undefined) { s.x1 += dx; s.y1 += dy; s.x2 += dx; s.y2 += dy; }
+  if (s.cx !== undefined) { s.cx += dx; s.cy += dy; }
 }
 
+function applyTransformHandle(th, pos) {
+  const s = strokes[th.index];
+  const bbox = th.bbox;
+  const cx = bbox.x + bbox.w / 2, cy = bbox.y + bbox.h / 2;
+  const rot = s.rotation || 0;
+
+  if (th.type === 'rotate') {
+    const angle = Math.atan2(pos.y - cy, pos.x - cx) + Math.PI / 2;
+    s.rotation = angle;
+    s.cx = cx; s.cy = cy;
+    return;
+  }
+
+  // Scale handle
+  const startPos = th.startPos;
+  const dx = pos.x - startPos.x, dy = pos.y - startPos.y;
+
+  // Unrotate delta
+  const udx = dx * Math.cos(-rot) - dy * Math.sin(-rot);
+  const udy = dx * Math.sin(-rot) + dy * Math.cos(-rot);
+
+  const scaleX = s.scaleX || 1, scaleY = s.scaleY || 1;
+  const type = th.type;
+
+  let dsx = 0, dsy = 0;
+  const bw = bbox.w || 1, bh = bbox.h || 1;
+  if (type.includes('e')) dsx = udx / bw;
+  if (type.includes('w')) dsx = -udx / bw;
+  if (type.includes('s')) dsy = udy / bh;
+  if (type.includes('n')) dsy = -udy / bh;
+
+  const newSX = Math.max(0.15, scaleX + dsx);
+  const newSY = Math.max(0.15, scaleY + dsy);
+  s.scaleX = newSX;
+  s.scaleY = newSY;
+  s.cx = cx; s.cy = cy;
+  th.startPos = { ...pos };
+}
+
+// Draw selection box + handles (handles drawn in screen space, rotation-aware)
 function drawSelectionHighlight(s) {
+  const bbox = getStrokeBBox(s);
+  const rot = s.rotation || 0;
+  const handles = getHandlePositions(bbox, rot);
+  const { cx, cy } = handles;
+
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Dashed border (rotated rect)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
   ctx.strokeStyle = '#3b82f6';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 4]);
-  ctx.lineDashOffset = 0;
-  let x1, y1, x2, y2;
-  if (s.type === 'pen') {
-    x1 = Math.min(...s.points.map(p => p.x)) - 8;
-    y1 = Math.min(...s.points.map(p => p.y)) - 8;
-    x2 = Math.max(...s.points.map(p => p.x)) + 8;
-    y2 = Math.max(...s.points.map(p => p.y)) + 8;
-  } else if (s.type === 'text') {
-    ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
-    const tw = ctx.measureText(s.text).width;
-    x1 = s.x - 6; y1 = s.y - s.size - 4; x2 = s.x + tw + 6; y2 = s.y + 6;
-  } else if (s.type === 'image') {
-    x1 = s.x - 4; y1 = s.y - 4; x2 = s.x + s.w + 4; y2 = s.y + s.h + 4;
-  } else {
-    x1 = Math.min(s.x1, s.x2) - 8; y1 = Math.min(s.y1, s.y2) - 8;
-    x2 = Math.max(s.x1, s.x2) + 8; y2 = Math.max(s.y1, s.y2) + 8;
-  }
   ctx.beginPath();
-  ctx.roundRect ? ctx.roundRect(x1, y1, x2 - x1, y2 - y1, 4) : ctx.rect(x1, y1, x2 - x1, y2 - y1);
+  ctx.rect(-bbox.w/2 - 4, -bbox.h/2 - 4, bbox.w + 8, bbox.h + 8);
   ctx.stroke();
+  ctx.restore();
+
+  // Rotate handle line
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(0, -bbox.h/2 - 4);
+  ctx.lineTo(0, -bbox.h/2 - ROTATE_OFFSET + HANDLE_R);
+  ctx.stroke();
+  ctx.restore();
+
+  // Scale handles (white square with blue border)
+  const scaleHandles = ['nw','n','ne','e','se','s','sw','w'];
+  scaleHandles.forEach(name => {
+    const pt = handles[name];
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.rect(pt.x - HANDLE_R/2, pt.y - HANDLE_R/2, HANDLE_R, HANDLE_R);
+    ctx.fill(); ctx.stroke();
+  });
+
+  // Rotate handle (circle)
+  const rpt = handles.rotate;
+  ctx.fillStyle = '#3b82f6';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(rpt.x, rpt.y, HANDLE_R, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Arrow icon inside rotate handle
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(rpt.x, rpt.y, 3.5, -0.5, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(rpt.x + 3.5, rpt.y - 2.5);
+  ctx.lineTo(rpt.x + 3.5, rpt.y + 1.5);
+  ctx.lineTo(rpt.x + 0.5, rpt.y - 0.5);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Apply rotation + scale transform around stroke center, then draw
+function applyStrokeTransform(s, drawFn) {
+  const rot = s.rotation || 0;
+  const sx = s.scaleX || 1, sy = s.scaleY || 1;
+  if (rot === 0 && sx === 1 && sy === 1) { drawFn(); return; }
+  const c = getStrokeCenter(s);
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.rotate(rot);
+  ctx.scale(sx, sy);
+  ctx.translate(-c.x, -c.y);
+  drawFn();
   ctx.restore();
 }
 
