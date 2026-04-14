@@ -35,15 +35,26 @@ html, body {
   cursor: crosshair; background: var(--bg);
   touch-action: none;
 }
+#drawCanvas.cursor-eraser { cursor: none; }
+#drawCanvas.cursor-text { cursor: text; }
+#drawCanvas.cursor-select { cursor: default; }
+
+/* === ERASER CURSOR === */
+#eraserCursor {
+  position: fixed; border: 2px solid #888; border-radius: 50%;
+  pointer-events: none; z-index: 999; display: none;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.3);
+}
 
 /* === TOP TOOLBAR (drawing tools) === */
 #topBar {
   position: fixed; top: 0; left: 0; right: 0;
   display: flex; align-items: center; justify-content: center;
-  gap: 1px; padding: 8px 8px; z-index: 100;
+  flex-wrap: wrap; gap: 4px; padding: 8px 8px;
   padding-top: max(8px, env(safe-area-inset-top));
-  background: linear-gradient(to bottom, rgba(248,248,246,0.95) 70%, transparent);
-  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(248,248,246,0.97) 70%, transparent);
+  pointer-events: none; z-index: 100;
 }
 #topBar > * { pointer-events: auto; }
 .tb {
@@ -54,22 +65,22 @@ html, body {
   box-shadow: var(--shadow-md);
 }
 .tool-btn {
-  width: 38px; height: 38px; border: none; background: transparent;
+  width: 36px; height: 36px; border: none; background: transparent;
   border-radius: 8px; cursor: pointer; display: flex; align-items: center;
   justify-content: center; color: var(--icon-default); transition: all 0.15s;
   -webkit-tap-highlight-color: transparent; flex-shrink: 0;
 }
 .tool-btn:active, .tool-btn.active { background: #edecea; color: var(--icon-active); }
-.tool-btn svg { width: 20px; height: 20px; pointer-events: none; }
+.tool-btn svg { width: 19px; height: 19px; pointer-events: none; }
 .tool-sep { width: 1px; height: 20px; background: var(--toolbar-border); margin: 0 2px; flex-shrink: 0; }
 
-/* === BOTTOM BAR (colors, stroke, record) === */
+/* === BOTTOM BAR === */
 #bottomBar {
   position: fixed; bottom: 0; left: 0; right: 0;
   display: flex; align-items: center; justify-content: center;
-  gap: 6px; padding: 8px 12px;
+  flex-wrap: wrap; gap: 4px; padding: 6px 12px;
   padding-bottom: max(8px, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(248,248,246,0.95) 70%, transparent);
+  background: linear-gradient(to top, rgba(248,248,246,0.97) 70%, transparent);
   z-index: 100; pointer-events: none;
 }
 #bottomBar > * { pointer-events: auto; }
@@ -89,9 +100,19 @@ html, body {
 }
 .color-dot.active { border-color: var(--icon-active); box-shadow: 0 0 0 2px #fff; }
 
+/* Fill toggle */
+#fillBtn {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: transparent; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent; color: var(--icon-default);
+}
+#fillBtn.active { background: #edecea; color: var(--icon-active); }
+#fillBtn svg { width: 18px; height: 18px; pointer-events: none; }
+
 /* Stroke width */
 .stroke-opt {
-  width: 32px; height: 32px; border-radius: 8px; border: none;
+  width: 30px; height: 30px; border-radius: 8px; border: none;
   background: transparent; cursor: pointer; display: flex;
   align-items: center; justify-content: center; transition: all 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -99,9 +120,18 @@ html, body {
 .stroke-opt.active { background: #edecea; }
 .stroke-dot { border-radius: 50%; background: var(--icon-default); }
 
+/* Eraser size */
+.eraser-opt {
+  width: 30px; height: 30px; border-radius: 8px; border: none;
+  background: transparent; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.eraser-opt.active { background: #edecea; }
+
 /* Record button */
 #recordBtn {
-  width: 42px; height: 42px; border: none; border-radius: 10px;
+  width: 40px; height: 40px; border: none; border-radius: 10px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   background: var(--accent-soft); transition: all 0.2s; color: var(--accent);
   -webkit-tap-highlight-color: transparent;
@@ -152,14 +182,28 @@ html, body {
   display: flex; flex-direction: column; gap: 4px; z-index: 90;
 }
 #undoRedo button {
-  width: 38px; height: 38px; border: 1px solid var(--toolbar-border);
+  width: 36px; height: 36px; border: 1px solid var(--toolbar-border);
   background: var(--toolbar-bg); border-radius: 10px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: var(--icon-default); box-shadow: var(--shadow-sm);
   backdrop-filter: blur(12px); -webkit-tap-highlight-color: transparent;
 }
 #undoRedo button:disabled { opacity: 0.25; }
-#undoRedo button svg { width: 18px; height: 18px; pointer-events: none; }
+#undoRedo button svg { width: 17px; height: 17px; pointer-events: none; }
+
+/* === SIDE BUTTONS === */
+#sideLeft {
+  position: fixed; top: 50%; left: 10px; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 4px; z-index: 90;
+}
+#sideLeft button {
+  width: 36px; height: 36px; border: 1px solid var(--toolbar-border);
+  background: var(--toolbar-bg); border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--icon-default); box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px); -webkit-tap-highlight-color: transparent;
+}
+#sideLeft button svg { width: 17px; height: 17px; pointer-events: none; }
 
 /* === TEXT INPUT === */
 #textInputWrap {
@@ -181,31 +225,91 @@ html, body {
 }
 #textConfirm svg { width: 20px; height: 20px; pointer-events: none; }
 
-/* === CLEAR BUTTON === */
-#clearBtn {
-  position: fixed; top: 50%; left: 10px; transform: translateY(-50%);
-  width: 38px; height: 38px; border: 1px solid var(--toolbar-border);
-  background: var(--toolbar-bg); border-radius: 10px; cursor: pointer;
+/* === BOARDS PANEL === */
+#boardsPanel {
+  position: fixed; top: 0; left: 0; width: 280px; height: 100%;
+  background: var(--toolbar-bg); border-right: 1px solid var(--toolbar-border);
+  backdrop-filter: blur(20px); z-index: 300; transform: translateX(-100%);
+  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column; box-shadow: var(--shadow-lg);
+}
+#boardsPanel.open { transform: translateX(0); }
+#boardsPanelOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.2);
+  z-index: 299; display: none; backdrop-filter: blur(2px);
+}
+#boardsPanelOverlay.open { display: block; }
+
+#boardsPanelHeader {
+  padding: 20px 16px 12px;
+  padding-top: max(20px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--toolbar-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+#boardsPanelHeader h2 { font-size: 16px; font-weight: 600; color: var(--icon-active); }
+#newBoardBtn {
+  width: 32px; height: 32px; border: none; border-radius: 8px;
+  background: var(--accent); color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: var(--icon-default); box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(12px); z-index: 90;
   -webkit-tap-highlight-color: transparent;
 }
-#clearBtn svg { width: 18px; height: 18px; pointer-events: none; }
+#newBoardBtn svg { width: 16px; height: 16px; pointer-events: none; }
+
+#boardsList { flex: 1; overflow-y: auto; padding: 8px; }
+.board-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 10px;
+  border-radius: 10px; cursor: pointer; transition: all 0.15s;
+  margin-bottom: 4px; position: relative;
+}
+.board-item:hover { background: #f0efec; }
+.board-item.active { background: #edecea; }
+.board-thumb {
+  width: 56px; height: 38px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid var(--toolbar-border); background: #f8f8f6;
+  object-fit: cover;
+}
+.board-info { flex: 1; min-width: 0; }
+.board-name { font-size: 13px; font-weight: 500; color: var(--icon-active); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-date { font-size: 11px; color: #999; margin-top: 2px; }
+.board-delete {
+  width: 26px; height: 26px; border: none; background: transparent;
+  border-radius: 6px; cursor: pointer; color: #bbb; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+}
+.board-delete:hover { background: #fee; color: var(--accent); }
+.board-delete svg { width: 14px; height: 14px; pointer-events: none; }
+
+#boardsExportBtn {
+  margin: 8px; padding: 10px; border: none; border-radius: 10px;
+  background: #f0efec; color: var(--icon-active); cursor: pointer;
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+}
+#boardsExportBtn:hover { background: #e8e6e1; }
+
+/* === TOAST === */
+#toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(0,0,0,0.75); color: #fff; padding: 8px 18px;
+  border-radius: 20px; font-size: 13px; z-index: 500;
+  opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Image upload hidden input */
+#imgUploadInput { display: none; }
 </style>
 </head>
 <body>
 
-<!-- TOP TOOLBAR: Drawing tools -->
 <div id="topBar"></div>
-
-<!-- RECORD TIMER -->
 <div id="recordTimer"><span id="timerText">00:00</span></div>
-
-<!-- CANVAS -->
 <canvas id="drawCanvas"></canvas>
+<div id="eraserCursor"></div>
 
-<!-- TEXT INPUT -->
 <div id="textInputWrap">
   <input type="text" id="textInput" placeholder="输入文字...">
   <button id="textConfirm">
@@ -213,7 +317,6 @@ html, body {
   </button>
 </div>
 
-<!-- CAMERA PIP -->
 <div id="cameraPip">
   <video id="cameraVideo" autoplay playsinline muted></video>
   <div id="cameraOff">
@@ -222,7 +325,6 @@ html, body {
   </div>
 </div>
 
-<!-- UNDO/REDO -->
 <div id="undoRedo">
   <button id="undoBtn" disabled>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 0 1 15.36-6.36L21 9"/></svg>
@@ -232,17 +334,42 @@ html, body {
   </button>
 </div>
 
-<!-- CLEAR BUTTON -->
-<button id="clearBtn">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-</button>
+<div id="sideLeft">
+  <button id="clearBtn" title="清空画板">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+  </button>
+  <button id="boardsBtn" title="画板管理">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+  </button>
+  <button id="saveImgBtn" title="保存为图片">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
+</div>
 
-<!-- BOTTOM BAR: Colors, stroke, record -->
 <div id="bottomBar"></div>
+
+<!-- Boards Panel -->
+<div id="boardsPanelOverlay"></div>
+<div id="boardsPanel">
+  <div id="boardsPanelHeader">
+    <h2>我的画板</h2>
+    <button id="newBoardBtn" title="新建画板">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+  <div id="boardsList"></div>
+  <button id="boardsExportBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    导出当前画板为图片
+  </button>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="imgUploadInput" accept="image/*">
 
 <script>
 // ========================================
-// BoardCam - Mobile-First Whiteboard App
+// BoardCam v2 - Enhanced Whiteboard App
 // ========================================
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -251,34 +378,50 @@ const $$ = s => document.querySelectorAll(s);
 let currentTool = 'pen';
 let currentColor = '#1a1916';
 let currentStroke = 3;
+let fillShapes = false;
+let currentEraserSize = 20;
 let strokes = [];
 let drawHistory = [];
 let historyIndex = -1;
 let isDrawing = false;
 let currentPoints = [];
 let shapeStart = null;
-let panOffset = { x: 0, y: 0 };
-let panStart = null;
 let cameraReady = false;
-let draggingText = null; // { index, offsetX, offsetY } for text dragging
+let draggingText = null;
+let draggingImage = null;
 let isRecording = false;
+let livePreviewPoints = []; // for real-time pen preview during recording
 
-const colors = ['#1a1916','#e8453c','#3b82f6','#16a34a','#f59e0b','#8b5cf6'];
+// Boards management
+let boards = [];
+let currentBoardId = null;
+
+const colors = ['#1a1916','#e8453c','#3b82f6','#16a34a','#f59e0b','#8b5cf6','#ec4899','#fff'];
 const strokeWidths = [2, 5, 10];
+const eraserSizes = [12, 28, 50];
 
 // --- BUILD TOP TOOLBAR ---
 const topTools = [
-  { id: 'select', icon: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/>' },
-  { id: 'pen', icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>' },
-  { id: 'line', icon: '<line x1="4" y1="20" x2="20" y2="4"/>' },
-  { id: 'arrow', icon: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>' },
+  { id: 'select', title:'选择/移动', icon: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/>' },
+  { id: 'pen', title:'画笔', icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>' },
+  { id: 'line', title:'直线', icon: '<line x1="4" y1="20" x2="20" y2="4"/>' },
+  { id: 'arrow', title:'箭头', icon: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>' },
   { id: 'sep' },
-  { id: 'rect', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/>' },
-  { id: 'ellipse', icon: '<circle cx="12" cy="12" r="10"/>' },
-  { id: 'diamond', icon: '<path d="M12 2l10 10-10 10L2 12z"/>' },
+  { id: 'rect', title:'矩形', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/>' },
+  { id: 'ellipse', title:'圆形', icon: '<circle cx="12" cy="12" r="10"/>' },
+  { id: 'diamond', title:'菱形', icon: '<path d="M12 2l10 10-10 10L2 12z"/>' },
+  { id: 'triangle', title:'三角形', icon: '<path d="M12 3L22 20H2L12 3z"/>' },
   { id: 'sep' },
-  { id: 'text', icon: '<path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/>' },
-  { id: 'eraser', icon: '<path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/>' },
+  // Person/stickman icon
+  { id: 'person', title:'小人', icon: '<circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="15"/><path d="M8 10l4 2 4-2"/><path d="M9 20l3-5 3 5"/>' },
+  // Camera icon
+  { id: 'camera', title:'摄影机', icon: '<rect x="1" y="6" width="14" height="11" rx="1.5"/><path d="M15 10l5-3v9l-5-3"/><circle cx="7" cy="11" r="2" fill="currentColor" opacity="0.5"/>' },
+  { id: 'sep' },
+  { id: 'text', title:'文字', icon: '<path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/>' },
+  { id: 'pixelEraser', title:'像素橡皮', icon: '<path d="M7 21l10-10-6-6L1 15l3 3"/><path d="M6 17l3-3"/><path d="M21 21H7"/>' },
+  { id: 'eraser', title:'对象橡皮', icon: '<path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/>' },
+  { id: 'sep' },
+  { id: 'uploadImg', title:'上传图片', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>' },
 ];
 
 (function buildTopBar() {
@@ -293,15 +436,38 @@ const topTools = [
     const btn = document.createElement('button');
     btn.className = 'tool-btn' + (t.id === currentTool ? ' active' : '');
     btn.dataset.tool = t.id;
+    btn.title = t.title || '';
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.icon}</svg>`;
     btn.addEventListener('click', () => {
-      currentTool = t.id;
-      $$('.tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t.id));
+      if (t.id === 'uploadImg') { $('#imgUploadInput').click(); return; }
+      setTool(t.id);
     });
     tb.appendChild(btn);
   });
   bar.appendChild(tb);
 })();
+
+function setTool(id) {
+  currentTool = id;
+  $$('.tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === id));
+  // Update canvas cursor
+  const c = $('#drawCanvas');
+  c.className = '';
+  if (id === 'pixelEraser') c.classList.add('cursor-eraser');
+  else if (id === 'text') c.classList.add('cursor-text');
+  else if (id === 'select') c.classList.add('cursor-select');
+  // Show/hide eraser size controls
+  const bb = document.getElementById('eraserBB');
+  if (bb) bb.style.display = (id === 'pixelEraser') ? 'flex' : 'none';
+  // Show/hide fill button
+  const fillBB = document.getElementById('fillBB');
+  if (fillBB) {
+    const shapeFills = ['rect','ellipse','diamond','triangle','person','camera'];
+    fillBB.style.display = shapeFills.includes(id) ? 'flex' : 'none';
+  }
+  // Show/hide eraser cursor
+  if (id !== 'pixelEraser') $('#eraserCursor').style.display = 'none';
+}
 
 // --- BUILD BOTTOM BAR ---
 (function buildBottomBar() {
@@ -314,6 +480,7 @@ const topTools = [
     const dot = document.createElement('div');
     dot.className = 'color-dot' + (i === 0 ? ' active' : '');
     dot.style.background = c;
+    if (c === '#fff') dot.style.border = '2.5px solid #ddd';
     dot.dataset.color = c;
     dot.addEventListener('click', () => {
       $$('.color-dot').forEach(x => x.classList.remove('active'));
@@ -323,6 +490,19 @@ const topTools = [
     colorsDiv.appendChild(dot);
   });
   bar.appendChild(colorsDiv);
+
+  // Fill toggle (only shown for shape tools)
+  const fillBB = document.createElement('div');
+  fillBB.className = 'bb'; fillBB.id = 'fillBB'; fillBB.style.display = 'none';
+  const fillBtn = document.createElement('button');
+  fillBtn.id = 'fillBtn'; fillBtn.title = '填充';
+  fillBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/></svg>';
+  fillBtn.addEventListener('click', () => {
+    fillShapes = !fillShapes;
+    fillBtn.classList.toggle('active', fillShapes);
+  });
+  fillBB.appendChild(fillBtn);
+  bar.appendChild(fillBB);
 
   // Stroke widths
   const strokeDiv = document.createElement('div');
@@ -341,10 +521,31 @@ const topTools = [
   });
   bar.appendChild(strokeDiv);
 
+  // Eraser sizes (hidden by default)
+  const eraserBB = document.createElement('div');
+  eraserBB.className = 'bb'; eraserBB.id = 'eraserBB'; eraserBB.style.display = 'none';
+  eraserSizes.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'eraser-opt' + (i === 0 ? ' active' : '');
+    btn.dataset.esize = s;
+    btn.title = s + 'px';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="${10+i*4}" height="${10+i*4}" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="${4+i*3}"/></svg>`;
+    btn.addEventListener('click', () => {
+      $$('.eraser-opt').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      currentEraserSize = s;
+      $('#eraserCursor').style.width = s*2 + 'px';
+      $('#eraserCursor').style.height = s*2 + 'px';
+    });
+    eraserBB.appendChild(btn);
+  });
+  bar.appendChild(eraserBB);
+
   // Record button
   const recBtn = document.createElement('button');
   recBtn.id = 'recordBtn';
-  recBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><circle cx="12" cy="12" r="7"/></svg>';
+  recBtn.title = '录制视频';
+  recBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><circle cx="12" cy="12" r="7"/></svg>';
   recBtn.addEventListener('click', toggleRecord);
   bar.appendChild(recBtn);
 })();
@@ -353,8 +554,6 @@ const topTools = [
 const canvas = $('#drawCanvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
-
-// Offscreen canvas for dot grid (draw once, reuse)
 let gridCache = null;
 let gridW = 0, gridH = 0;
 
@@ -365,26 +564,20 @@ function buildGridCache(w, h) {
   gridCache.height = h * dpr;
   const gc = gridCache.getContext('2d');
   gc.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Background
   gc.fillStyle = '#f8f8f6';
   gc.fillRect(0, 0, w, h);
-  // Dots
   gc.fillStyle = '#ddd9d0';
   for (let x = 0; x < w; x += 24) {
     for (let y = 0; y < h; y += 24) {
-      gc.beginPath();
-      gc.arc(x, y, 0.7, 0, Math.PI * 2);
-      gc.fill();
+      gc.beginPath(); gc.arc(x, y, 0.7, 0, Math.PI * 2); gc.fill();
     }
   }
 }
 
 function resizeCanvas() {
   const w = window.innerWidth, h = window.innerHeight;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   buildGridCache(w, h);
   redraw();
@@ -396,23 +589,26 @@ resizeCanvas();
 function saveState() {
   historyIndex++;
   drawHistory = drawHistory.slice(0, historyIndex);
-  drawHistory.push(JSON.parse(JSON.stringify(strokes)));
+  // Deep clone (handle image elements)
+  drawHistory.push(strokes.map(s => {
+    if (s.type === 'image') return { ...s }; // img element ref shared is ok
+    return JSON.parse(JSON.stringify(s));
+  }));
   updateUndoRedo();
+  autoSaveBoard();
 }
 function undo() {
   if (historyIndex > 0) {
     historyIndex--;
-    strokes = JSON.parse(JSON.stringify(drawHistory[historyIndex]));
-    redraw();
-    updateUndoRedo();
+    strokes = drawHistory[historyIndex].map(s => ({ ...s }));
+    redraw(); updateUndoRedo();
   }
 }
 function redo() {
   if (historyIndex < drawHistory.length - 1) {
     historyIndex++;
-    strokes = JSON.parse(JSON.stringify(drawHistory[historyIndex]));
-    redraw();
-    updateUndoRedo();
+    strokes = drawHistory[historyIndex].map(s => ({ ...s }));
+    redraw(); updateUndoRedo();
   }
 }
 function updateUndoRedo() {
@@ -423,47 +619,74 @@ $('#undoBtn').addEventListener('click', undo);
 $('#redoBtn').addEventListener('click', redo);
 $('#clearBtn').addEventListener('click', () => {
   if (strokes.length === 0) return;
-  strokes = [];
-  saveState();
-  redraw();
+  strokes = []; saveState(); redraw();
 });
 
-saveState(); // initial empty state
+saveState();
 
-// --- DRAWING ---
+// --- INPUT HELPERS ---
 function getPos(e) {
   const t = e.touches ? e.touches[0] : e;
-  return { x: t.clientX - panOffset.x, y: t.clientY - panOffset.y };
+  return { x: t.clientX, y: t.clientY };
 }
 
-// Use touch events for maximum mobile compatibility
+// --- PIXEL ERASER CANVAS ---
+// For pixel eraser, we use a separate compositing approach
+// We draw everything to an offscreen canvas, erase pixels, then use it as bg
+let pixelEraseCanvas = null;
+let pixelEraseCtx = null;
+
+function initPixelEraseCanvas() {
+  if (!pixelEraseCanvas) {
+    pixelEraseCanvas = document.createElement('canvas');
+    pixelEraseCtx = pixelEraseCanvas.getContext('2d');
+  }
+  pixelEraseCanvas.width = canvas.width;
+  pixelEraseCanvas.height = canvas.height;
+  pixelEraseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// --- DRAW EVENTS ---
 canvas.addEventListener('touchstart', onStart, { passive: false });
 canvas.addEventListener('touchmove', onMove, { passive: false });
 canvas.addEventListener('touchend', onEnd, { passive: false });
 canvas.addEventListener('touchcancel', onEnd, { passive: false });
-// Also mouse events for desktop
 canvas.addEventListener('mousedown', onStart);
 canvas.addEventListener('mousemove', onMove);
 canvas.addEventListener('mouseup', onEnd);
-canvas.addEventListener('mouseleave', onEnd);
+canvas.addEventListener('mouseleave', e => {
+  $('#eraserCursor').style.display = 'none';
+  if (isDrawing) onEnd(e);
+});
 
 function onStart(e) {
   e.preventDefault();
   const pos = getPos(e);
-  const raw = e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
 
-  // Select tool: try to grab a text element to drag
+  // Pixel eraser mode
+  if (currentTool === 'pixelEraser') {
+    isDrawing = true;
+    pixelErase(pos);
+    return;
+  }
+
+  // Select / drag
   if (currentTool === 'select') {
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
       if (s.type === 'text') {
-        // Hit test: check if tap is near text position
         ctx.save();
         ctx.font = `500 ${s.size}px 'DM Sans', sans-serif`;
         const tw = ctx.measureText(s.text).width;
         ctx.restore();
         if (pos.x >= s.x - 10 && pos.x <= s.x + tw + 10 && pos.y >= s.y - s.size - 5 && pos.y <= s.y + 10) {
           draggingText = { index: i, offsetX: pos.x - s.x, offsetY: pos.y - s.y };
+          return;
+        }
+      }
+      if (s.type === 'image') {
+        if (pos.x >= s.x && pos.x <= s.x + s.w && pos.y >= s.y && pos.y <= s.y + s.h) {
+          draggingImage = { index: i, offsetX: pos.x - s.x, offsetY: pos.y - s.y };
           return;
         }
       }
@@ -474,10 +697,9 @@ function onStart(e) {
   if (currentTool === 'text') {
     const wrap = $('#textInputWrap');
     const input = $('#textInput');
-    // Store position for later use
     wrap._textPos = pos;
-    wrap.style.left = raw.x + 'px';
-    wrap.style.top = (raw.y - 44) + 'px';
+    wrap.style.left = Math.min(pos.x, window.innerWidth - 240) + 'px';
+    wrap.style.top = (pos.y - 44) + 'px';
     wrap.style.display = 'flex';
     input.style.color = currentColor;
     input.value = '';
@@ -486,7 +708,7 @@ function onStart(e) {
   }
 
   if (currentTool === 'eraser') {
-    eraseAt(pos);
+    eraseObject(pos);
     return;
   }
 
@@ -500,52 +722,65 @@ function onStart(e) {
 
 function onMove(e) {
   e.preventDefault();
+  const pos = getPos(e);
 
-  // Handle text dragging
-  if (draggingText) {
-    const pos = getPos(e);
-    strokes[draggingText.index].x = pos.x - draggingText.offsetX;
-    strokes[draggingText.index].y = pos.y - draggingText.offsetY;
-    redraw();
+  // Eraser cursor tracking
+  if (currentTool === 'pixelEraser') {
+    const ec = $('#eraserCursor');
+    ec.style.display = 'block';
+    ec.style.left = pos.x + 'px';
+    ec.style.top = pos.y + 'px';
+    const size = currentEraserSize * 2;
+    ec.style.width = size + 'px';
+    ec.style.height = size + 'px';
+    if (isDrawing) pixelErase(pos);
     return;
   }
 
+  if (draggingText) {
+    strokes[draggingText.index].x = pos.x - draggingText.offsetX;
+    strokes[draggingText.index].y = pos.y - draggingText.offsetY;
+    redraw(); return;
+  }
+  if (draggingImage) {
+    strokes[draggingImage.index].x = pos.x - draggingImage.offsetX;
+    strokes[draggingImage.index].y = pos.y - draggingImage.offsetY;
+    redraw(); return;
+  }
+
   if (!isDrawing) return;
-  const pos = getPos(e);
 
   if (currentTool === 'pen') {
     currentPoints.push(pos);
+    // Always redraw + show live preview
     redraw();
     drawPenStroke(currentPoints, currentColor, currentStroke);
   } else if (shapeStart) {
     redraw();
-    drawShape(currentTool, shapeStart.x, shapeStart.y, pos.x, pos.y, currentColor, currentStroke);
+    drawShape(currentTool, shapeStart.x, shapeStart.y, pos.x, pos.y, currentColor, currentStroke, fillShapes);
   }
 }
 
 function onEnd(e) {
-  // Finish text drag
-  if (draggingText) {
-    saveState();
-    draggingText = null;
-    return;
-  }
-
+  if (draggingText) { saveState(); draggingText = null; return; }
+  if (draggingImage) { saveState(); draggingImage = null; return; }
+  if (currentTool === 'pixelEraser') { isDrawing = false; saveState(); return; }
   if (!isDrawing) return;
   isDrawing = false;
 
   let pos;
-  if (e.changedTouches) {
-    pos = { x: e.changedTouches[0].clientX - panOffset.x, y: e.changedTouches[0].clientY - panOffset.y };
+  if (e.changedTouches && e.changedTouches.length) {
+    const t = e.changedTouches[0];
+    pos = { x: t.clientX, y: t.clientY };
   } else {
-    pos = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+    pos = { x: e.clientX || 0, y: e.clientY || 0 };
   }
 
   if (currentTool === 'pen' && currentPoints.length > 1) {
     strokes.push({ type: 'pen', points: [...currentPoints], color: currentColor, width: currentStroke });
     saveState();
   } else if (shapeStart && currentTool !== 'pen') {
-    strokes.push({ type: currentTool, x1: shapeStart.x, y1: shapeStart.y, x2: pos.x, y2: pos.y, color: currentColor, width: currentStroke });
+    strokes.push({ type: currentTool, x1: shapeStart.x, y1: shapeStart.y, x2: pos.x, y2: pos.y, color: currentColor, width: currentStroke, fill: fillShapes });
     saveState();
   }
   currentPoints = [];
@@ -553,7 +788,8 @@ function onEnd(e) {
   redraw();
 }
 
-function eraseAt(pos) {
+// --- OBJECT ERASER ---
+function eraseObject(pos) {
   const threshold = 20;
   for (let i = strokes.length - 1; i >= 0; i--) {
     const s = strokes[i];
@@ -561,51 +797,52 @@ function eraseAt(pos) {
     if (s.type === 'pen') {
       hit = s.points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < threshold);
     } else if (s.type === 'text') {
-      hit = Math.hypot(s.x - pos.x, s.y - pos.y) < 50;
+      hit = Math.hypot(s.x - pos.x, s.y - pos.y) < 60;
+    } else if (s.type === 'image') {
+      hit = pos.x >= s.x && pos.x <= s.x + s.w && pos.y >= s.y && pos.y <= s.y + s.h;
     } else {
       const cx = (s.x1 + s.x2) / 2, cy = (s.y1 + s.y2) / 2;
       hit = Math.hypot(cx - pos.x, cy - pos.y) < Math.max(Math.abs(s.x2 - s.x1), Math.abs(s.y2 - s.y1)) / 2 + threshold;
     }
-    if (hit) {
-      strokes.splice(i, 1);
-      saveState();
-      redraw();
-      return;
-    }
+    if (hit) { strokes.splice(i, 1); saveState(); redraw(); return; }
   }
+}
+
+// --- PIXEL ERASER ---
+function pixelErase(pos) {
+  // Erase a circle of pixels from canvas using destination-out
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, currentEraserSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 // --- RENDERING ---
 function redraw() {
-  const w = canvas.width / dpr;
-  const h = canvas.height / dpr;
-
+  const w = canvas.width / dpr, h = canvas.height / dpr;
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Background
+  if (gridCache) ctx.drawImage(gridCache, 0, 0, w, h);
+  else { ctx.fillStyle = '#f8f8f6'; ctx.fillRect(0, 0, w, h); }
 
-  // 1) Draw cached background + grid (fast, no per-dot loop)
-  if (gridCache) {
-    ctx.drawImage(gridCache, 0, 0, w, h);
-  } else {
-    ctx.fillStyle = '#f8f8f6';
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  // 2) Draw strokes
-  ctx.translate(panOffset.x, panOffset.y);
+  // Draw all strokes
   strokes.forEach(s => {
     if (s.type === 'pen') drawPenStroke(s.points, s.color, s.width);
     else if (s.type === 'text') drawText(s);
-    else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width);
+    else if (s.type === 'image') drawImageStroke(s);
+    else drawShape(s.type, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.fill);
   });
 
-  // 3) Branding watermark (above bottom bar, not cut off)
+  // Watermark
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.font = '500 11px "DM Sans", sans-serif';
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
   ctx.textAlign = 'left';
-  ctx.fillText('UNLOCK STUDIO', 40, h - 64);
-
+  ctx.fillText('BOARDCAM', 40, h - 68);
   ctx.restore();
 }
 
@@ -626,23 +863,39 @@ function drawPenStroke(pts, color, width) {
   ctx.stroke();
 }
 
-function drawShape(type, x1, y1, x2, y2, color, width) {
+function drawShape(type, x1, y1, x2, y2, color, width, fill) {
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  if (fill) { ctx.fillStyle = color + '33'; } // 20% opacity fill
 
   if (type === 'rect') {
-    ctx.beginPath(); ctx.rect(x1, y1, x2 - x1, y2 - y1); ctx.stroke();
+    ctx.beginPath();
+    ctx.rect(x1, y1, x2 - x1, y2 - y1);
+    if (fill) ctx.fill();
+    ctx.stroke();
   } else if (type === 'diamond') {
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
     ctx.beginPath();
     ctx.moveTo(cx, y1); ctx.lineTo(x2, cy); ctx.lineTo(cx, y2); ctx.lineTo(x1, cy);
-    ctx.closePath(); ctx.stroke();
+    ctx.closePath();
+    if (fill) ctx.fill();
+    ctx.stroke();
   } else if (type === 'ellipse') {
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
     const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
-    ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2);
+    if (fill) ctx.fill();
+    ctx.stroke();
+  } else if (type === 'triangle') {
+    const cx = (x1 + x2) / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y1); ctx.lineTo(x2, y2); ctx.lineTo(x1, y2);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    ctx.stroke();
   } else if (type === 'line') {
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   } else if (type === 'arrow') {
@@ -655,7 +908,95 @@ function drawShape(type, x1, y1, x2, y2, color, width) {
     ctx.moveTo(x2, y2);
     ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
     ctx.stroke();
+  } else if (type === 'person') {
+    drawPerson(x1, y1, x2, y2, color, width, fill);
+  } else if (type === 'camera') {
+    drawCameraShape(x1, y1, x2, y2, color, width, fill);
   }
+}
+
+function drawPerson(x1, y1, x2, y2, color, width, fill) {
+  const w = x2 - x1, h = y2 - y1;
+  const cx = x1 + w / 2;
+  const headR = Math.abs(w) * 0.12;
+  const hy = y1 + headR * 2;
+  const by = y1 + Math.abs(h) * 0.55;
+  const fy = y2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Head
+  ctx.beginPath();
+  ctx.arc(cx, y1 + headR, headR, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = color + '33'; ctx.fill(); }
+  ctx.stroke();
+
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(cx, hy); ctx.lineTo(cx, by); ctx.stroke();
+
+  // Arms
+  ctx.beginPath();
+  ctx.moveTo(x1 + w * 0.15, y1 + Math.abs(h) * 0.38);
+  ctx.lineTo(cx, y1 + Math.abs(h) * 0.28);
+  ctx.lineTo(x1 + w * 0.85, y1 + Math.abs(h) * 0.38);
+  ctx.stroke();
+
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(cx, by); ctx.lineTo(x1 + w * 0.2, fy); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, by); ctx.lineTo(x1 + w * 0.8, fy); ctx.stroke();
+}
+
+function drawCameraShape(x1, y1, x2, y2, color, width, fill) {
+  const w = x2 - x1, h = y2 - y1;
+  const bx = x1, by = y1 + Math.abs(h) * 0.18;
+  const bw = Math.abs(w) * 0.72, bh = Math.abs(h) * 0.65;
+  const cx2 = x1 + Math.abs(w) * 0.38, cy2 = by + bh / 2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (fill) ctx.fillStyle = color + '33';
+
+  // Body rect
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 4) : ctx.rect(bx, by, bw, bh);
+  if (fill) ctx.fill();
+  ctx.stroke();
+
+  // Viewfinder bump
+  ctx.beginPath();
+  ctx.rect(x1 + Math.abs(w) * 0.22, y1, Math.abs(w) * 0.28, Math.abs(h) * 0.22);
+  if (fill) ctx.fill();
+  ctx.stroke();
+
+  // Lens
+  const lr = Math.min(bw, bh) * 0.26;
+  ctx.beginPath();
+  ctx.arc(cx2, cy2, lr, 0, Math.PI * 2);
+  if (fill) ctx.fill();
+  ctx.stroke();
+
+  // Lens inner
+  ctx.beginPath();
+  ctx.arc(cx2, cy2, lr * 0.55, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Viewfinder triangle (pointing right)
+  const vx = x1 + Math.abs(w) * 0.74, vy = by;
+  ctx.beginPath();
+  ctx.moveTo(vx, vy + bh * 0.2);
+  ctx.lineTo(x2, vy + bh * 0.5);
+  ctx.lineTo(vx, vy + bh * 0.8);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  ctx.stroke();
 }
 
 function drawText(s) {
@@ -664,19 +1005,48 @@ function drawText(s) {
   ctx.fillText(s.text, s.x, s.y);
 }
 
-// --- CAMERA (tap to activate) ---
+function drawImageStroke(s) {
+  if (s.imgEl && s.imgEl.complete) {
+    ctx.drawImage(s.imgEl, s.x, s.y, s.w, s.h);
+  }
+}
+
+// --- IMAGE UPLOAD ---
+$('#imgUploadInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = window.innerWidth * 0.6;
+      const maxH = window.innerHeight * 0.6;
+      let w = img.width, h = img.height;
+      const ratio = Math.min(maxW / w, maxH / h, 1);
+      w = Math.round(w * ratio); h = Math.round(h * ratio);
+      const x = (window.innerWidth - w) / 2;
+      const y = (window.innerHeight - h) / 2;
+      strokes.push({ type: 'image', imgEl: img, src: ev.target.result, x, y, w, h });
+      saveState(); redraw();
+      showToast('图片已上传，可用选择工具拖动');
+      setTool('select');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// --- CAMERA ---
 const cameraOff = $('#cameraOff');
 const cameraVideo = $('#cameraVideo');
-
 cameraOff.addEventListener('click', startCamera);
-// Also try auto-start after a small delay (works on some browsers)
 setTimeout(() => { if (!cameraReady) startCamera(); }, 500);
 
 async function startCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 240 }, height: { ideal: 240 } },
-      audio: false
+      video: { facingMode: 'user', width: { ideal: 240 }, height: { ideal: 240 } }, audio: false
     });
     cameraVideo.srcObject = stream;
     cameraOff.style.display = 'none';
@@ -690,63 +1060,45 @@ async function startCamera() {
 // --- DRAGGABLE CAMERA PIP ---
 (function () {
   const pip = $('#cameraPip');
-  let dragging = false, startX, startY, origX, origY, moved = false;
-
+  let dragging = false, startX, startY, origX, origY;
   pip.addEventListener('touchstart', e => {
     if (e.target === cameraOff || e.target.parentElement === cameraOff) return;
     const t = e.touches[0];
-    dragging = true; moved = false;
+    dragging = true;
     startX = t.clientX; startY = t.clientY;
     const r = pip.getBoundingClientRect();
     origX = r.left; origY = r.top;
   }, { passive: true });
-
   pip.addEventListener('touchmove', e => {
     if (!dragging) return;
     e.preventDefault();
     const t = e.touches[0];
-    const dx = t.clientX - startX, dy = t.clientY - startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-    pip.style.left = (origX + dx) + 'px';
-    pip.style.top = (origY + dy) + 'px';
-    pip.style.right = 'auto';
-    pip.style.bottom = 'auto';
+    pip.style.left = (origX + t.clientX - startX) + 'px';
+    pip.style.top = (origY + t.clientY - startY) + 'px';
+    pip.style.right = 'auto'; pip.style.bottom = 'auto';
   }, { passive: false });
-
   pip.addEventListener('touchend', () => { dragging = false; });
 
-  // --- PINCH TO RESIZE ---
   let pinching = false, initDist = 0, initSize = 0;
-
   function pinchDist(e) {
     const a = e.touches[0], b = e.touches[1];
     return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   }
-
   pip.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
-      e.preventDefault();
-      pinching = true;
-      dragging = false;
-      initDist = pinchDist(e);
-      initSize = pip.offsetWidth;
+      e.preventDefault(); pinching = true; dragging = false;
+      initDist = pinchDist(e); initSize = pip.offsetWidth;
     }
   }, { passive: false });
-
   pip.addEventListener('touchmove', e => {
     if (pinching && e.touches.length === 2) {
       e.preventDefault();
-      const scale = pinchDist(e) / initDist;
-      let newSize = Math.round(initSize * scale);
-      newSize = Math.max(50, Math.min(200, newSize)); // clamp 50-200px
-      pip.style.width = newSize + 'px';
-      pip.style.height = newSize + 'px';
+      let newSize = Math.round(initSize * (pinchDist(e) / initDist));
+      newSize = Math.max(50, Math.min(200, newSize));
+      pip.style.width = newSize + 'px'; pip.style.height = newSize + 'px';
     }
   }, { passive: false });
-
-  pip.addEventListener('touchend', e => {
-    if (e.touches.length < 2) pinching = false;
-  });
+  pip.addEventListener('touchend', e => { if (e.touches.length < 2) pinching = false; });
 })();
 
 // --- SCREEN RECORDING ---
@@ -754,26 +1106,31 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recordStartTime = 0;
 let timerInterval = null;
+let compositeRAF = null;
 
 async function toggleRecord() {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
     return;
   }
-
   try {
     const canvasStream = canvas.captureStream(30);
     let audioStream = null;
-    try {
-      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) { /* no audio */ }
+    try { audioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) {}
 
     const tracks = [...canvasStream.getTracks()];
     if (audioStream) tracks.push(...audioStream.getTracks());
     const stream = new MediaStream(tracks);
 
-    // Find supported mime type
-    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+    // Prefer MP4, then MOV-compatible containers, then WebM
+    const mimeTypes = [
+      'video/mp4;codecs=h264,aac',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
     let mimeType = '';
     for (const mt of mimeTypes) {
       if (MediaRecorder.isTypeSupported(mt)) { mimeType = mt; break; }
@@ -783,11 +1140,10 @@ async function toggleRecord() {
     const options = mimeType ? { mimeType } : {};
     mediaRecorder = new MediaRecorder(stream, options);
 
-    mediaRecorder.ondataavailable = e => {
-      if (e.data.size > 0) recordedChunks.push(e.data);
-    };
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = () => {
-      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const isMp4 = mimeType.includes('mp4');
+      const ext = isMp4 ? 'mp4' : 'webm';
       const blob = new Blob(recordedChunks, { type: mimeType || 'video/webm' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -795,15 +1151,21 @@ async function toggleRecord() {
       a.download = 'boardcam-' + Date.now() + '.' + ext;
       a.click();
       URL.revokeObjectURL(url);
-
       $('#recordBtn').classList.remove('recording');
       $('#recordTimer').classList.remove('visible');
       clearInterval(timerInterval);
+      isRecording = false;
       if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+      $('#cameraPip').style.opacity = '1';
+      cancelAnimationFrame(compositeRAF);
+      compositeRAF = null;
+      redraw();
+      showToast(isMp4 ? '视频已保存为 MP4' : '视频已保存为 WebM');
     };
 
-    mediaRecorder.start(200);
+    mediaRecorder.start(100); // more frequent chunks for smoother recording
     $('#recordBtn').classList.add('recording');
+    isRecording = true;
     recordStartTime = Date.now();
     $('#recordTimer').classList.add('visible');
     timerInterval = setInterval(() => {
@@ -816,47 +1178,47 @@ async function toggleRecord() {
     startCompositeLoop();
   } catch (err) {
     console.error('Recording failed:', err);
-    alert('录屏功能暂不支持此浏览器，请使用 Chrome 浏览器。');
+    alert('录屏功能在此浏览器暂不支持，请使用 Chrome 浏览器。');
   }
 }
 
-let compositeRAF = null;
 function startCompositeLoop() {
   const video = cameraVideo;
   const pip = $('#cameraPip');
-  isRecording = true;
-  // Hide HTML camera element during recording (we draw it on canvas instead)
-  pip.style.opacity = '0';
+  pip.style.opacity = '0'; // Hide DOM pip, draw on canvas instead
 
   function loop() {
     if (!mediaRecorder || mediaRecorder.state !== 'recording') {
-      compositeRAF = null;
-      isRecording = false;
-      pip.style.opacity = '1';
       return;
     }
 
-    // Only composite camera onto canvas (don't call redraw - drawing events handle that)
-    // We do a full redraw here to ensure canvas stream captures latest state
+    // Full redraw + live drawing preview
     redraw();
 
+    // If actively drawing pen stroke during recording, show it live
+    if (isDrawing && currentTool === 'pen' && currentPoints.length > 1) {
+      drawPenStroke(currentPoints, currentColor, currentStroke);
+    }
+    // Shape preview during recording
+    if (isDrawing && shapeStart) {
+      // We don't have current mouse pos easily here, skip shape preview in recording
+    }
+
+    // Composite camera onto canvas
     if (cameraReady && video.readyState >= 2) {
       const pr = pip.getBoundingClientRect();
       const cx = pr.left + pr.width / 2;
       const cy = pr.top + pr.height / 2;
       const r = pr.width / 2;
-
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.closePath();
       ctx.clip();
       ctx.translate(cx + r, cy - r);
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, r * 2, r * 2);
       ctx.restore();
-
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.beginPath();
@@ -866,10 +1228,214 @@ function startCompositeLoop() {
       ctx.stroke();
       ctx.restore();
     }
+
     compositeRAF = requestAnimationFrame(loop);
   }
   loop();
 }
+
+// Override onMove to also track positions for recording
+const _origOnMove = onMove;
+
+// --- BOARDS MANAGEMENT ---
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function loadBoards() {
+  try {
+    const raw = localStorage.getItem('boardcam_boards');
+    boards = raw ? JSON.parse(raw) : [];
+  } catch (e) { boards = []; }
+}
+
+function saveBoards() {
+  // Store boards metadata + stroke data (without Image elements)
+  const toSave = boards.map(b => ({
+    ...b,
+    strokes: b.strokes ? b.strokes.map(s => {
+      if (s.type === 'image') {
+        // Persist image as src string
+        return { type: 'image', src: s.src, x: s.x, y: s.y, w: s.w, h: s.h };
+      }
+      return s;
+    }) : []
+  }));
+  try { localStorage.setItem('boardcam_boards', JSON.stringify(toSave)); } catch (e) { console.warn('Storage full'); }
+}
+
+function restoreImageElements(strks) {
+  return strks.map(s => {
+    if (s.type === 'image' && s.src && !s.imgEl) {
+      const img = new Image();
+      img.src = s.src;
+      img.onload = () => redraw();
+      return { ...s, imgEl: img };
+    }
+    return s;
+  });
+}
+
+function autoSaveBoard() {
+  if (!currentBoardId) return;
+  const idx = boards.findIndex(b => b.id === currentBoardId);
+  if (idx === -1) return;
+  boards[idx].strokes = strokes.map(s => {
+    if (s.type === 'image') return { type: 'image', src: s.src, x: s.x, y: s.y, w: s.w, h: s.h };
+    return { ...s };
+  });
+  boards[idx].thumb = generateThumb();
+  boards[idx].updatedAt = Date.now();
+  saveBoards();
+  renderBoardsList();
+}
+
+function generateThumb() {
+  const tc = document.createElement('canvas');
+  tc.width = 112; tc.height = 76;
+  const tctx = tc.getContext('2d');
+  const sx = 112 / canvas.width * dpr;
+  const sy = 76 / canvas.height * dpr;
+  tctx.scale(sx, sy);
+  tctx.drawImage(canvas, 0, 0);
+  return tc.toDataURL('image/jpeg', 0.6);
+}
+
+function createNewBoard(name) {
+  const id = genId();
+  const b = { id, name: name || '画板 ' + (boards.length + 1), strokes: [], thumb: '', createdAt: Date.now(), updatedAt: Date.now() };
+  boards.unshift(b);
+  saveBoards();
+  return b;
+}
+
+function switchBoard(id) {
+  // Save current
+  autoSaveBoard();
+  // Load target
+  const b = boards.find(x => x.id === id);
+  if (!b) return;
+  currentBoardId = id;
+  strokes = restoreImageElements(b.strokes || []);
+  drawHistory = [strokes.map(s => ({ ...s }))];
+  historyIndex = 0;
+  updateUndoRedo();
+  redraw();
+  renderBoardsList();
+}
+
+function deleteBoard(id) {
+  if (boards.length <= 1) { showToast('至少保留一个画板'); return; }
+  boards = boards.filter(b => b.id !== id);
+  saveBoards();
+  if (currentBoardId === id) {
+    switchBoard(boards[0].id);
+  } else {
+    renderBoardsList();
+  }
+}
+
+function renderBoardsList() {
+  const list = $('#boardsList');
+  list.innerHTML = '';
+  boards.forEach(b => {
+    const item = document.createElement('div');
+    item.className = 'board-item' + (b.id === currentBoardId ? ' active' : '');
+
+    const thumb = document.createElement('img');
+    thumb.className = 'board-thumb';
+    thumb.src = b.thumb || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    thumb.onerror = () => { thumb.style.background = '#eee'; };
+
+    const info = document.createElement('div');
+    info.className = 'board-info';
+    info.innerHTML = `<div class="board-name">${b.name}</div><div class="board-date">${new Date(b.updatedAt).toLocaleDateString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
+
+    const del = document.createElement('button');
+    del.className = 'board-delete';
+    del.title = '删除';
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+    del.addEventListener('click', e => { e.stopPropagation(); deleteBoard(b.id); });
+
+    item.appendChild(thumb);
+    item.appendChild(info);
+    item.appendChild(del);
+    item.addEventListener('click', () => { switchBoard(b.id); closeBoardsPanel(); });
+    list.appendChild(item);
+  });
+}
+
+function openBoardsPanel() {
+  autoSaveBoard();
+  renderBoardsList();
+  $('#boardsPanel').classList.add('open');
+  $('#boardsPanelOverlay').classList.add('open');
+}
+function closeBoardsPanel() {
+  $('#boardsPanel').classList.remove('open');
+  $('#boardsPanelOverlay').classList.remove('open');
+}
+
+$('#boardsBtn').addEventListener('click', openBoardsPanel);
+$('#boardsPanelOverlay').addEventListener('click', closeBoardsPanel);
+$('#newBoardBtn').addEventListener('click', () => {
+  autoSaveBoard();
+  const b = createNewBoard();
+  currentBoardId = b.id;
+  strokes = [];
+  drawHistory = [[]];
+  historyIndex = 0;
+  updateUndoRedo();
+  redraw();
+  renderBoardsList();
+  showToast('新画板已创建');
+});
+$('#boardsExportBtn').addEventListener('click', () => { saveAsImage(); closeBoardsPanel(); });
+
+// Initialize boards
+loadBoards();
+if (boards.length === 0) {
+  const b = createNewBoard('默认画板');
+  currentBoardId = b.id;
+} else {
+  currentBoardId = boards[0].id;
+  strokes = restoreImageElements(boards[0].strokes || []);
+  drawHistory = [strokes.map(s => ({ ...s }))];
+  historyIndex = 0;
+}
+updateUndoRedo();
+redraw();
+
+// --- SAVE AS IMAGE ---
+function saveAsImage() {
+  // Render clean version
+  redraw();
+  const link = document.createElement('a');
+  link.download = 'boardcam-' + Date.now() + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('画板已保存为图片');
+}
+$('#saveImgBtn').addEventListener('click', saveAsImage);
+
+// --- TEXT INPUT ---
+function submitText() {
+  const wrap = $('#textInputWrap');
+  const input = $('#textInput');
+  if (input.value.trim() && wrap._textPos) {
+    strokes.push({
+      type: 'text', x: wrap._textPos.x, y: wrap._textPos.y,
+      text: input.value, color: currentColor, size: 18 + currentStroke * 2
+    });
+    saveState(); redraw();
+  }
+  wrap.style.display = 'none';
+  input.blur();
+  wrap._textPos = null;
+}
+$('#textConfirm').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); submitText(); });
+$('#textInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitText(); } });
+$('#textInput').addEventListener('blur', () => {
+  setTimeout(() => { if ($('#textInputWrap').style.display === 'flex') submitText(); }, 150);
+});
 
 // --- KEYBOARD SHORTCUTS ---
 document.addEventListener('keydown', e => {
@@ -877,53 +1443,23 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'y') { e.preventDefault(); redo(); }
 });
 
-// --- TEXT INPUT: submit on confirm button, blur, or Enter ---
-function submitText() {
-  const wrap = $('#textInputWrap');
-  const input = $('#textInput');
-  if (input.value.trim() && wrap._textPos) {
-    strokes.push({
-      type: 'text',
-      x: wrap._textPos.x,
-      y: wrap._textPos.y,
-      text: input.value,
-      color: currentColor,
-      size: 18 + currentStroke * 2
-    });
-    saveState();
-    redraw();
-  }
-  wrap.style.display = 'none';
-  input.blur();
-  wrap._textPos = null;
+// --- TOAST ---
+let toastTimer = null;
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-$('#textConfirm').addEventListener('click', e => {
-  e.preventDefault();
-  e.stopPropagation();
-  submitText();
-});
-$('#textInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); submitText(); }
-});
-// Submit on blur (tap elsewhere)
-$('#textInput').addEventListener('blur', () => {
-  // Small delay to allow confirm button click to fire first
-  setTimeout(() => {
-    if ($('#textInputWrap').style.display === 'flex') submitText();
-  }, 150);
-});
-
-// --- PREVENT DOUBLE-TAP ZOOM (iOS) ---
+// --- PREVENT DOUBLE-TAP ZOOM ---
 let lastTouchEnd = 0;
 document.addEventListener('touchend', e => {
   const now = Date.now();
-  if (now - lastTouchEnd < 300) {
-    e.preventDefault();
-  }
+  if (now - lastTouchEnd < 300) e.preventDefault();
   lastTouchEnd = now;
 }, { passive: false });
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
