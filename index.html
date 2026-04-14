@@ -1564,6 +1564,15 @@ $('#textInput').addEventListener('blur', () => {
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   if ((e.metaKey || e.ctrlKey) && e.key === 'y') { e.preventDefault(); redo(); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !e.target.matches('input,textarea')) {
+    if (selectedStroke >= 0 && selectedStroke < strokes.length) {
+      e.preventDefault();
+      strokes.splice(selectedStroke, 1);
+      selectedStroke = -1;
+      saveState();
+      redraw();
+    }
+  }
 });
 
 // --- TOAST ---
