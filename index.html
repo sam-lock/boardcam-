@@ -50,29 +50,29 @@ html, body {
 /* === TOP TOOLBAR (drawing tools) === */
 #topBar {
   position: fixed; top: 0; left: 0; right: 0;
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 4px; padding: 8px 8px;
-  padding-top: max(8px, env(safe-area-inset-top));
-  background: linear-gradient(to bottom, rgba(248,248,246,0.97) 70%, transparent);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px; padding: 5px 8px;
+  padding-top: max(5px, env(safe-area-inset-top));
+  background: linear-gradient(to bottom, rgba(248,248,246,0.97) 85%, transparent);
   pointer-events: none; z-index: 100;
 }
 #topBar > * { pointer-events: auto; }
 .tb {
-  display: flex; align-items: center; gap: 1px;
+  display: flex; align-items: center; gap: 0px;
   background: var(--toolbar-bg); border: 1px solid var(--toolbar-border);
-  border-radius: 10px; padding: 3px 4px;
+  border-radius: 10px; padding: 2px 3px;
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md); flex-wrap: nowrap; overflow: visible;
 }
 .tool-btn {
-  width: 36px; height: 36px; border: none; background: transparent;
+  width: 34px; height: 34px; border: none; background: transparent;
   border-radius: 8px; cursor: pointer; display: flex; align-items: center;
   justify-content: center; color: var(--icon-default); transition: all 0.15s;
   -webkit-tap-highlight-color: transparent; flex-shrink: 0;
 }
 .tool-btn:active, .tool-btn.active { background: #edecea; color: var(--icon-active); }
-.tool-btn svg { width: 19px; height: 19px; pointer-events: none; }
-.tool-sep { width: 1px; height: 20px; background: var(--toolbar-border); margin: 0 2px; flex-shrink: 0; }
+.tool-btn svg { width: 18px; height: 18px; pointer-events: none; }
+.tool-sep { width: 1px; height: 18px; background: var(--toolbar-border); margin: 0 1px; flex-shrink: 0; }
 
 /* === BOTTOM BAR === */
 #bottomBar {
@@ -335,6 +335,9 @@ html, body {
 </div>
 
 <div id="sideLeft">
+  <button id="uploadImgBtn" title="上传图片" style="color:var(--accent);background:var(--accent-soft);">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+  </button>
   <button id="clearBtn" title="清空画板">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
   </button>
@@ -400,51 +403,49 @@ const colors = ['#1a1916','#e8453c','#3b82f6','#16a34a','#f59e0b','#8b5cf6','#ec
 const strokeWidths = [2, 5, 10];
 const eraserSizes = [12, 28, 50];
 
-// --- BUILD TOP TOOLBAR ---
-const topTools = [
+// --- BUILD TOP TOOLBAR (2 rows for mobile) ---
+// Row 1: core drawing tools
+const topToolsRow1 = [
   { id: 'select', title:'选择/移动', icon: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/>' },
   { id: 'pen', title:'画笔', icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>' },
   { id: 'line', title:'直线', icon: '<line x1="4" y1="20" x2="20" y2="4"/>' },
   { id: 'arrow', title:'箭头', icon: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>' },
   { id: 'sep' },
+  { id: 'text', title:'文字', icon: '<path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/>' },
+  { id: 'pixelEraser', title:'像素橡皮', icon: '<path d="M7 21l10-10-6-6L1 15l3 3"/><path d="M6 17l3-3"/><path d="M21 21H7"/>' },
+  { id: 'eraser', title:'对象橡皮', icon: '<path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/>' },
+];
+// Row 2: shapes + special symbols
+const topToolsRow2 = [
   { id: 'rect', title:'矩形', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/>' },
   { id: 'ellipse', title:'圆形', icon: '<circle cx="12" cy="12" r="10"/>' },
   { id: 'diamond', title:'菱形', icon: '<path d="M12 2l10 10-10 10L2 12z"/>' },
   { id: 'triangle', title:'三角形', icon: '<path d="M12 3L22 20H2L12 3z"/>' },
   { id: 'sep' },
-  // Person/stickman icon
   { id: 'person', title:'小人', icon: '<circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="15"/><path d="M8 10l4 2 4-2"/><path d="M9 20l3-5 3 5"/>' },
-  // Camera icon
   { id: 'camera', title:'摄影机', icon: '<rect x="1" y="6" width="14" height="11" rx="1.5"/><path d="M15 10l5-3v9l-5-3"/><circle cx="7" cy="11" r="2" fill="currentColor" opacity="0.5"/>' },
-  { id: 'sep' },
-  { id: 'text', title:'文字', icon: '<path d="M6 4h12"/><path d="M12 4v16"/><path d="M8 20h8"/>' },
-  { id: 'pixelEraser', title:'像素橡皮', icon: '<path d="M7 21l10-10-6-6L1 15l3 3"/><path d="M6 17l3-3"/><path d="M21 21H7"/>' },
-  { id: 'eraser', title:'对象橡皮', icon: '<path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/>' },
-  { id: 'sep' },
-  { id: 'uploadImg', title:'上传图片', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>' },
 ];
 
-(function buildTopBar() {
-  const bar = $('#topBar');
+function buildToolRow(tools) {
   const tb = document.createElement('div');
   tb.className = 'tb';
-  topTools.forEach(t => {
-    if (t.id === 'sep') {
-      tb.insertAdjacentHTML('beforeend', '<div class="tool-sep"></div>');
-      return;
-    }
+  tools.forEach(t => {
+    if (t.id === 'sep') { tb.insertAdjacentHTML('beforeend', '<div class="tool-sep"></div>'); return; }
     const btn = document.createElement('button');
     btn.className = 'tool-btn' + (t.id === currentTool ? ' active' : '');
     btn.dataset.tool = t.id;
     btn.title = t.title || '';
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.icon}</svg>`;
-    btn.addEventListener('click', () => {
-      if (t.id === 'uploadImg') { $('#imgUploadInput').click(); return; }
-      setTool(t.id);
-    });
+    btn.addEventListener('click', () => setTool(t.id));
     tb.appendChild(btn);
   });
-  bar.appendChild(tb);
+  return tb;
+}
+
+(function buildTopBar() {
+  const bar = $('#topBar');
+  bar.appendChild(buildToolRow(topToolsRow1));
+  bar.appendChild(buildToolRow(topToolsRow2));
 })();
 
 function setTool(id) {
@@ -1012,6 +1013,7 @@ function drawImageStroke(s) {
 }
 
 // --- IMAGE UPLOAD ---
+$('#uploadImgBtn').addEventListener('click', () => $('#imgUploadInput').click());
 $('#imgUploadInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
